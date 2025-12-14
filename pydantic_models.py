@@ -9,7 +9,7 @@ class UserCreate(User):
   password:str
 
 class UserDbIn(User):
-  hasshed_password:str
+  hashed_password:str
   
 class UserOut(User):
   id:int

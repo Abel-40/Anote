@@ -1,7 +1,8 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-  SECRET_KEY:str
+  ACCESS_SECRET_KEY:str
+  REFRESH_SECRET_KEY:str
   ALGORITHUM:str
   TOKEN_EXPIRY_DATE:int
   DB_URL:str
