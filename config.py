@@ -6,7 +6,7 @@ class Settings(BaseSettings):
   ALGORITHUM:str
   TOKEN_EXPIRY_DATE:int
   DB_URL:str
-  
+  UPLOAD_DIR:str
   class Config:
     env_file = ".env"
     

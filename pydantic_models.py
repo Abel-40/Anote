@@ -1,5 +1,5 @@
-from pydantic import BaseModel,EmailStr,Field
-from typing import Annotated
+from pydantic import BaseModel,EmailStr,Field,field_validator,ValidationError
+from typing import Annotated,List
 class User(BaseModel):
   username:Annotated[str,Field(min_length=2,max_length=50)]
   email:EmailStr
@@ -15,3 +15,48 @@ class UserOut(User):
   id:int
   class Config:
     from_attributes = True
+
+class MediaFileCreate(BaseModel):
+  file_name:str
+  file_path:str
+  content_type:str
+  note_id:int
+  
+class MediaFileOut(BaseModel):
+  id:int
+  file_name:str
+  file_path:str
+  content_type:str
+  class Config:
+    from_attributes = True 
+    
+class NoteCreate(BaseModel):
+  title:str
+  content:str
+  
+class NoteOut(BaseModel):
+  id:int
+  title:str
+  content:str
+  files:List[MediaFileOut]
+  class Config:
+    from_attributes = True
+
+class TagCreate(BaseModel):
+  name:str
+  
+  @field_validator("name")
+  @classmethod
+  def no_hashtag(cls,value):
+    if not value.startswith("#"):
+      raise ValueError("Tags must start with a '#'")
+    return value
+
+class TagOut(BaseModel):
+  id:int
+  name:str
+  notes:List[NoteOut]
+  
+  class Config:
+    from_attributes = True
+    

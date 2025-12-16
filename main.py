@@ -1,17 +1,20 @@
-from fastapi import FastAPI,Depends,HTTPException,Cookie,Request
+from fastapi import FastAPI,Depends,HTTPException,Cookie,Request,UploadFile,File
 from fastapi.responses import JSONResponse
 from config import setting
 from pwdlib import PasswordHash
-from typing import Annotated
+from typing import Annotated,List
 from db_connection import session
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from pathlib import Path
 from datetime import timedelta,datetime,timezone
-from pydantic_models import UserOut,UserCreate,UserDbIn
+from pydantic_models import UserOut,UserCreate,UserDbIn,MediaFileOut,MediaFileCreate,NoteCreate,NoteOut,TagCreate,TagOut
 from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
-import jwt
 from jwt.exceptions import InvalidTokenError
+from uuid import uuid4
+import jwt
 import db_models
+import shutil
 
 # important variables
 auth_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -21,7 +24,8 @@ REFRESH_SECRET_KEY = setting.REFRESH_SECRET_KEY
 ALGOR = setting.ALGORITHUM
 TOKEN_EXPIRY = setting.TOKEN_EXPIRY_DATE
 password_hash = PasswordHash.recommended()
-
+UPLOAD_DIR = Path(setting.UPLOAD_DIR)
+UPLOAD_DIR.mkdir(parents=True,exist_ok=True)
 
 # utility functions
 def hash_password(plain_password):
@@ -29,17 +33,25 @@ def hash_password(plain_password):
 def validate_password(plain_password,hashed_password):
   return password_hash.verify(plain_password,hashed_password)
 
+async def upload_file(file_to_upload:UploadFile):
+  suffix = Path(file_to_upload.filename).suffix  # ".png", ".pdf", ""
+  unique_name = f"{uuid4()}{suffix}"
+  file_path = UPLOAD_DIR / unique_name
+  with file_path.open("wb") as buffer:
+    shutil.copyfileobj(file_to_upload.file,buffer)
+  return str(file_path)
+
+#dependancy funxtions
+def get_user(username:str,db:Session):
+  user = db.query(db_models.User).filter(db_models.User.username == username).first()
+  return user
+
 def get_db():
   db = session()
   try:
     yield db
   finally:
     db.close()
- 
-#dependancy funxtions
-def get_user(username:str,db:Session):
-  user = db.query(db_models.User).filter(db_models.User.username == username).first()
-  return user
 
 def authenticate(database:Session,username:str, password:str):
   user = get_user(username=username,db=database)
@@ -138,6 +150,35 @@ async def refresh(request:Request):
     return {"access_token":access_token,"token_type":"Bearer"}
   except InvalidTokenError:
     raise HTTPException(401,"Invalid Token!!!")
+  
+ 
+# **********************Note Endpoints ******************************* 
+@app.post("/notes/")
+async def create_note(note:NoteCreate,user:Annotated[get_current_user,Depends(get_current_user)],tag_names:List[str | None]=None,files:Annotated[List[UploadFile | None],File()] = None,db:Session = Depends(get_db)):
+  
+  if tag_names:
+    existing_tags = (db.query(db_models.Tag).filter(db_models.Tag.name.in_(tag_names)).all())
+    existing_names = {tag.name for tag in existing_tags}
+    new_tags = [db_models.Tag(name=name) for name in tag_names if name not in existing_names]
+    db.add_all(new_tags)
+  
+  note_for_db = db_models.Note(**note.model_dump(),user_id=user.id)
+  db.add(note_for_db)
+  db.flush()
+  note_for_db.tags.extend(existing_tags + new_tags)
+  
+  if files:
+    for f in files:
+      f_path = upload_file(f)
+      files_for_db = db_models.MediaFileCreate(file_name=f.filename,file_path=f_path,content_typ=f.content_type,note_id=note_for_db.id)
+      db.add(files_for_db)
+  db.commit()
+  
+  return {"message":"note created successfully"}
+  
+ 
+ 
+ 
     
 @app.get("/check/",dependencies=[Depends(verify_token)])
 async def check():
