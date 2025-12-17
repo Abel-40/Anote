@@ -1,4 +1,4 @@
-from fastapi import FastAPI,Depends,HTTPException,Cookie,Request,UploadFile,File
+from fastapi import FastAPI,Depends,HTTPException,Cookie,Request,UploadFile,File,Form
 from fastapi.responses import JSONResponse
 from config import setting
 from pwdlib import PasswordHash
@@ -33,7 +33,7 @@ def hash_password(plain_password):
 def validate_password(plain_password,hashed_password):
   return password_hash.verify(plain_password,hashed_password)
 
-async def upload_file(file_to_upload:UploadFile):
+def upload_file(file_to_upload:UploadFile):
   suffix = Path(file_to_upload.filename).suffix  # ".png", ".pdf", ""
   unique_name = f"{uuid4()}{suffix}"
   file_path = UPLOAD_DIR / unique_name
@@ -41,11 +41,22 @@ async def upload_file(file_to_upload:UploadFile):
     shutil.copyfileobj(file_to_upload.file,buffer)
   return str(file_path)
 
+    
 #dependancy funxtions
 def get_user(username:str,db:Session):
   user = db.query(db_models.User).filter(db_models.User.username == username).first()
   return user
 
+def validate_tag(
+    tag_names: List[str] = Form(default_factory=list)
+) -> List[str]:
+    for tag in tag_names:
+        if not tag.startswith("#"):
+            raise HTTPException(
+                status_code=422,
+                detail="Tags must start with '#'"
+            )
+    return tag_names
 def get_db():
   db = session()
   try:
@@ -61,7 +72,7 @@ def authenticate(database:Session,username:str, password:str):
     return False
   return user
 
-def get_current_user(token:Annotated[str,Depends(auth_scheme)],db:Session = Depends(get_db)):
+def get_current_user(token:Annotated[str,Depends(auth_scheme)],db:Session = Depends(get_db))->db_models.User:
   credentials_exception = HTTPException(status_code=401,detail="Invalid Credentials!!!", headers = {"WWW-Authenticate":"Bearer"})
   try:
     payload = jwt.decode(token,ACCESS_SECRET_KEY,algorithms=[ALGOR])
@@ -154,24 +165,32 @@ async def refresh(request:Request):
  
 # **********************Note Endpoints ******************************* 
 @app.post("/notes/")
-async def create_note(note:NoteCreate,user:Annotated[get_current_user,Depends(get_current_user)],tag_names:List[str | None]=None,files:Annotated[List[UploadFile | None],File()] = None,db:Session = Depends(get_db)):
-  
+async def create_note(
+  user:Annotated[db_models.User,Depends(get_current_user)],
+  files:Annotated[List[UploadFile],File(default_factory=list)],
+  note:NoteCreate = Depends(NoteCreate.as_form), 
+  tag_names:List[str]=Depends(validate_tag),
+  db:Session = Depends(get_db)
+  ):
+  existing_tags = []
+  new_tags = []
+  print(f"TAGS:----> {tag_names}")
   if tag_names:
     existing_tags = (db.query(db_models.Tag).filter(db_models.Tag.name.in_(tag_names)).all())
     existing_names = {tag.name for tag in existing_tags}
     new_tags = [db_models.Tag(name=name) for name in tag_names if name not in existing_names]
     db.add_all(new_tags)
-  
+    
   note_for_db = db_models.Note(**note.model_dump(),user_id=user.id)
   db.add(note_for_db)
   db.flush()
   note_for_db.tags.extend(existing_tags + new_tags)
   
-  if files:
-    for f in files:
-      f_path = upload_file(f)
-      files_for_db = db_models.MediaFileCreate(file_name=f.filename,file_path=f_path,content_typ=f.content_type,note_id=note_for_db.id)
-      db.add(files_for_db)
+
+  for f in files:
+    f_path = upload_file(f)
+    files_for_db = db_models.MediaFile(file_name=f.filename,file_path=f_path,content_type=f.content_type,note_id=note_for_db.id)
+    db.add(files_for_db)
   db.commit()
   
   return {"message":"note created successfully"}
@@ -180,6 +199,6 @@ async def create_note(note:NoteCreate,user:Annotated[get_current_user,Depends(ge
  
  
     
-@app.get("/check/",dependencies=[Depends(verify_token)])
-async def check():
-  return {"current user":"work"}
+@app.post("/check/",dependencies=[Depends(verify_token)])
+async def check(file:UploadFile):
+  return {"file name":file.filename}

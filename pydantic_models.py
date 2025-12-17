@@ -1,5 +1,6 @@
 from pydantic import BaseModel,EmailStr,Field,field_validator,ValidationError
 from typing import Annotated,List
+from fastapi import Form
 class User(BaseModel):
   username:Annotated[str,Field(min_length=2,max_length=50)]
   email:EmailStr
@@ -34,6 +35,9 @@ class NoteCreate(BaseModel):
   title:str
   content:str
   
+  @classmethod
+  def as_form(cls,title:str = Form(...),content:str = Form(...)):
+    return cls(title=title,content=content)
 class NoteOut(BaseModel):
   id:int
   title:str
@@ -45,6 +49,9 @@ class NoteOut(BaseModel):
 class TagCreate(BaseModel):
   name:str
   
+  @classmethod
+  def as_form(cls,name:str=Form(...)):
+    return cls(name=name)
   @field_validator("name")
   @classmethod
   def no_hashtag(cls,value):
