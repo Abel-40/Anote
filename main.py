@@ -5,7 +5,7 @@ from utility import hash_password,upload_file,success_response,error_response,Pa
 from typing import Annotated,List
 from sqlalchemy.orm import Session,joinedload
 from sqlalchemy.exc import IntegrityError
-from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams
+from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams,NoteUpdate
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from dependencies import get_current_user,get_db,authenticate,token_generator,validate_tag,verify_token
@@ -149,10 +149,44 @@ async def get_notes(
         status_code=status.HTTP_200_OK
     )
 
+@app.get("/notes/{id}",response_model=ApiResponse[NoteOut])
+async def get_note_by_id(id:int,db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
+  note = (
+  db.query(db_models.Note)
+  .options(
+    joinedload(db_models.Note.files),
+    joinedload(db_models.Note.tags)
+  )
+  .filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id)
+  .first()
+  )
+  if not note:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Note doesn't exist.")
   
+  return success_response(message="Note fetched successfully!!!",status_code=status.HTTP_200_OK,data=note,meta=None)
  
- 
-    
+@app.put("/notes/{id}",response_model=ApiResponse[NoteOut])
+async def update_note(id:int,note_content:NoteUpdate,db:Session=Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
+  note_to_update = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id).first()
+  if not note_to_update:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Note doesn't exist.")
+  for key,value in note_content.model_dump(exclude_none=True).items():
+    setattr(note_to_update,key,value)
+  db.commit()
+  return success_response(message="Note Updated Successfully!!!",status_code=status.HTTP_200_OK,data=note_to_update)
+  
+@app.delete("/notes/{id}")
+async def delete_note(id:int,db:Session=Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
+  note_to_delete = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id).first()
+  if not note_to_delete:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Note doesn't exist.")
+  db.delete(note_to_delete)
+  db.commit()
+
+  return {"message":"Note successfully deleted!!!"}
+
+
+
 @app.post("/check/",dependencies=[Depends(verify_token)])
 async def check(file:UploadFile):
   return {"file name":file.filename}

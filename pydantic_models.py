@@ -69,6 +69,9 @@ class NoteOut(BaseModel):
 
     class Config:
         from_attributes = True
+class NoteUpdate(BaseModel):
+  title: Optional[str] = Field(default=None, min_length=1)
+  content: Optional[str] = Field(default=None)
 
 class QueryParams(BaseModel):
   page:int = Field(default=1,ge=1)
