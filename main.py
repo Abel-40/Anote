@@ -1,111 +1,31 @@
-from fastapi import FastAPI,Depends,HTTPException,Cookie,Request,UploadFile,File,Form
+from fastapi import FastAPI,Depends,HTTPException,Request,UploadFile,File,Query,status
 from fastapi.responses import JSONResponse
 from config import setting
-from pwdlib import PasswordHash
+from utility import hash_password,upload_file,success_response,error_response,PaginatedResponse,paginated_query
 from typing import Annotated,List
-from db_connection import session
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,joinedload
 from sqlalchemy.exc import IntegrityError
-from pathlib import Path
-from datetime import timedelta,datetime,timezone
-from pydantic_models import UserOut,UserCreate,UserDbIn,MediaFileOut,MediaFileCreate,NoteCreate,NoteOut,TagCreate,TagOut
-from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
+from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams
+from fastapi.security import OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
-from uuid import uuid4
+from dependencies import get_current_user,get_db,authenticate,token_generator,validate_tag,verify_token
+from datetime import timedelta
 import jwt
 import db_models
-import shutil
 
 # important variables
-auth_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 app = FastAPI()
 ACCESS_SECRET_KEY = setting.ACCESS_SECRET_KEY
 REFRESH_SECRET_KEY = setting.REFRESH_SECRET_KEY
 ALGOR = setting.ALGORITHUM
 TOKEN_EXPIRY = setting.TOKEN_EXPIRY_DATE
-password_hash = PasswordHash.recommended()
-UPLOAD_DIR = Path(setting.UPLOAD_DIR)
-UPLOAD_DIR.mkdir(parents=True,exist_ok=True)
 
-# utility functions
-def hash_password(plain_password):
-  return password_hash.hash(plain_password)
-def validate_password(plain_password,hashed_password):
-  return password_hash.verify(plain_password,hashed_password)
 
-def upload_file(file_to_upload:UploadFile):
-  suffix = Path(file_to_upload.filename).suffix  # ".png", ".pdf", ""
-  unique_name = f"{uuid4()}{suffix}"
-  file_path = UPLOAD_DIR / unique_name
-  with file_path.open("wb") as buffer:
-    shutil.copyfileobj(file_to_upload.file,buffer)
-  return str(file_path)
 
-    
-#dependancy funxtions
-def get_user(username:str,db:Session):
-  user = db.query(db_models.User).filter(db_models.User.username == username).first()
-  return user
-
-def validate_tag(
-    tag_names: List[str] = Form(default_factory=list)
-) -> List[str]:
-    for tag in tag_names:
-        if not tag.startswith("#"):
-            raise HTTPException(
-                status_code=422,
-                detail="Tags must start with '#'"
-            )
-    return tag_names
-def get_db():
-  db = session()
-  try:
-    yield db
-  finally:
-    db.close()
-
-def authenticate(database:Session,username:str, password:str):
-  user = get_user(username=username,db=database)
-  if not user:
-    return False
-  if not validate_password(password,user.hashed_password):
-    return False
-  return user
-
-def get_current_user(token:Annotated[str,Depends(auth_scheme)],db:Session = Depends(get_db))->db_models.User:
-  credentials_exception = HTTPException(status_code=401,detail="Invalid Credentials!!!", headers = {"WWW-Authenticate":"Bearer"})
-  try:
-    payload = jwt.decode(token,ACCESS_SECRET_KEY,algorithms=[ALGOR])
-    username = payload.get("sub")
-    if payload.get("type") != "access":
-      raise credentials_exception
-
-    if not username:
-      raise credentials_exception
-    user = get_user(username,db)
-    if not user:
-      raise credentials_exception
-    return user
-  except InvalidTokenError:
-    raise credentials_exception
-
-def token_generator(data:dict,token_type:str,token_expiry:timedelta | None = None):
-    to_encode = data.copy()
-    if token_expiry:
-      token_expiry = datetime.now(timezone.utc) + token_expiry
-    else:
-      token_expiry = datetime.now(timezone.utc) + timedelta(days=15)
-    to_encode.update({"exp":token_expiry})
-    token = jwt.encode(to_encode,token_type,ALGOR)
-    return token
-  
-def verify_token(token:str = Depends(auth_scheme)):
-  try:
-    jwt.decode(token,ACCESS_SECRET_KEY,algorithms=[ALGOR])
-  except InvalidTokenError:
-    raise HTTPException(401,"Invalid Token!!!")
-    
 #endpoints  
+
+# **********************Auth Endpoints******************************* 
 @app.post("/register/",response_model=UserOut)
 def register(user_data:UserCreate,db:Annotated[Session,Depends(get_db)]):
   db_data = UserDbIn(**user_data.model_dump(exclude={"password"}),hashed_password=hash_password(user_data.password))
@@ -195,7 +115,41 @@ async def create_note(
   
   return {"message":"note created successfully"}
   
- 
+@app.get(
+    "/notes/",
+    response_model=ApiResponse[PaginatedResponse[NoteOut]]
+)
+async def get_notes(
+    q: QueryParams = Depends(),
+    current_user: db_models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    query = (
+        db.query(db_models.Note)
+        .options(
+            joinedload(db_models.Note.tags),
+            joinedload(db_models.Note.files)
+        )
+        .filter(db_models.Note.user_id == current_user.id)
+        .order_by(db_models.Note.created_at.desc())
+    )
+
+    result = paginated_query(
+        query,
+        page=q.page,
+        page_size=q.page_size
+    )
+
+    return success_response(
+        message="Notes fetched successfully",
+        data={
+            "items": result["items"],
+            "pagination": result["meta"]
+        },
+        status_code=status.HTTP_200_OK
+    )
+
+  
  
  
     

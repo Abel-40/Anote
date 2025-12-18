@@ -1,6 +1,7 @@
-from pydantic import BaseModel,EmailStr,Field,field_validator,ValidationError
-from typing import Annotated,List
+from pydantic import BaseModel,EmailStr,Field,field_validator
+from typing import Annotated,List,Optional,Generic,TypeVar,Any
 from fastapi import Form
+from datetime import datetime
 class User(BaseModel):
   username:Annotated[str,Field(min_length=2,max_length=50)]
   email:EmailStr
@@ -30,22 +31,8 @@ class MediaFileOut(BaseModel):
   content_type:str
   class Config:
     from_attributes = True 
-    
-class NoteCreate(BaseModel):
-  title:str
-  content:str
-  
-  @classmethod
-  def as_form(cls,title:str = Form(...),content:str = Form(...)):
-    return cls(title=title,content=content)
-class NoteOut(BaseModel):
-  id:int
-  title:str
-  content:str
-  files:List[MediaFileOut]
-  class Config:
-    from_attributes = True
-
+ 
+ 
 class TagCreate(BaseModel):
   name:str
   
@@ -62,8 +49,48 @@ class TagCreate(BaseModel):
 class TagOut(BaseModel):
   id:int
   name:str
-  notes:List[NoteOut]
-  
   class Config:
     from_attributes = True
-    
+       
+class NoteCreate(BaseModel):
+  title:str
+  content:str
+  
+  @classmethod
+  def as_form(cls,title:str = Form(...),content:str = Form(...)):
+    return cls(title=title,content=content)
+class NoteOut(BaseModel):
+    id: int
+    title: str
+    content: Optional[str]
+    created_at: datetime
+    tags: List[TagOut] = []
+    files: List[MediaFileOut] = []
+
+    class Config:
+        from_attributes = True
+
+class QueryParams(BaseModel):
+  page:int = Field(default=1,ge=1)
+  page_size:int = Field(default=10,le=100)
+  tags:Optional[List[str]] = None
+T = TypeVar("T")
+
+class ApiResponse(BaseModel,Generic[T]):
+  success:bool
+  message:str
+  data:Optional[T] = None
+  status_code:int
+  meta:Optional[dict[str,Any]] = None
+  errors:Optional[Any] = None
+
+class PaginationMeta(BaseModel):
+  page:int
+  page_size:int
+  total_items:int
+  total_pages:int
+  
+I = TypeVar("I")
+class PaginatedResponse(BaseModel,Generic[I]):
+  items:List[I]
+  pagination:PaginationMeta
