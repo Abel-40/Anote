@@ -20,7 +20,7 @@ def validate_password(plain_password,hashed_password):
 
 
 def upload_file(file:UploadFile):
-  allowed_suffixes = {"xlsx",".pdf", ".jpeg","jpg", ".csv", ".docx",".txt"}
+  allowed_suffixes = {"xlsx",".pdf", ".jpeg",".jpg", ".csv", ".docx",".txt"}
   suffix = Path(file.filename).suffix.lower()
   if suffix not in allowed_suffixes:
       raise HTTPException(
@@ -28,7 +28,8 @@ def upload_file(file:UploadFile):
           detail="Invalid file type. Allowed types: pdf, jpeg, csv, docx"
       )
 
-  file_name = f"{uuid4}{suffix}"
+  file_name = f"{uuid4()}{suffix}"
+  print(file_name)
   file_path = UPLOAD_DIR / file_name
   with file_path.open("wb") as buffer:
     shutil.copyfileobj(file.file,buffer)

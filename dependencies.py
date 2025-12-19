@@ -20,15 +20,21 @@ def get_user(username:str,db:Session):
   return user
 
 def validate_tag(
-    tag_names: List[str] = Form(default_factory=list)
+    tag_names: str = Form(...)
 ) -> List[str]:
-    for tag in tag_names:
+
+    if not tag_names:
+      return []
+    tag_list = tag_names.split()
+    validated_tags = []
+    for tag in tag_list:
         if not tag.startswith("#"):
             raise HTTPException(
                 status_code=422,
                 detail="Tags must start with '#'"
             )
-    return tag_names
+        validated_tags.append(tag)
+    return validated_tags
   
 def get_db():
   db = session()

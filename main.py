@@ -1,4 +1,4 @@
-from fastapi import FastAPI,Depends,HTTPException,Request,UploadFile,File,Query,status
+from fastapi import FastAPI,Depends,HTTPException,Request,UploadFile,File,Query,status,Response,Cookie
 from fastapi.responses import JSONResponse
 from config import setting
 from utility import hash_password,upload_file,success_response,error_response,PaginatedResponse,paginated_query
@@ -92,6 +92,9 @@ async def create_note(
   tag_names:List[str]=Depends(validate_tag),
   db:Session = Depends(get_db)
   ):
+  """pass tags as string separted by space
+    eg: #tag1 #tag2 #tag3
+  """
   existing_tags = []
   new_tags = []
   print(f"TAGS:----> {tag_names}")
@@ -149,8 +152,18 @@ async def get_notes(
         status_code=status.HTTP_200_OK
     )
 
+@app.get("/notes/last-opened",response_model=ApiResponse[NoteOut])
+async def get_last_opened_note(request:Request,db:Session = Depends(get_db),current_user:db_models = Depends(get_current_user)):
+  last_opened_note_id = request.cookies.get("last_note")
+  if not last_opened_note_id:
+    raise HTTPException(404, "No last opened note")
+  note = db.query(db_models.Note).filter(db_models.Note.id == int(last_opened_note_id), db_models.Note.user_id == current_user.id ).first()
+  if not note:
+    raise HTTPException(400,"Note doesn't exist!!!")   
+  return success_response(message="Note fetched",status_code=200,data=note)
+
 @app.get("/notes/{id}",response_model=ApiResponse[NoteOut])
-async def get_note_by_id(id:int,db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
+async def get_note_by_id(id:int,response:Response,db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
   note = (
   db.query(db_models.Note)
   .options(
@@ -162,7 +175,7 @@ async def get_note_by_id(id:int,db:Session = Depends(get_db),current_user:db_mod
   )
   if not note:
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Note doesn't exist.")
-  
+  response.set_cookie(key="last_note",value=id,secure=False,httponly=True,max_age=60 * 60 * 24)
   return success_response(message="Note fetched successfully!!!",status_code=status.HTTP_200_OK,data=note,meta=None)
  
 @app.put("/notes/{id}",response_model=ApiResponse[NoteOut])
@@ -184,6 +197,40 @@ async def delete_note(id:int,db:Session=Depends(get_db),current_user:db_models.U
   db.commit()
 
   return {"message":"Note successfully deleted!!!"}
+
+
+@app.post("/notes/{id}/tags",response_model=ApiResponse[NoteOut])
+async def add_tags_to_note(id:int,tag_names:List[str]=Depends(validate_tag),db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
+  existing_tags =[]
+  new_tags = []
+  if tag_names:
+    existing_tags = (
+      db.query(db_models.Tag)
+      .filter(db_models.Tag.name.in_(tag_names))
+      .all()
+      )
+    existing_tagnames = [tag.name for tag in existing_tags]
+    new_tags = [ db_models.Tag(name=tag) for tag in tag_names if tag not in existing_tagnames ]
+    db.add_all(new_tags)
+    note = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id).first()
+    if not note:
+      raise HTTPException(400,"Note doesn't exist!!!")
+    
+    note.tags.extend(new_tags)
+    db.commit()
+    return success_response(message="Tags added successfully to note!!!",status_code=200,data=note)
+  else:
+    return error_response(message="Please add tags name",status_code=400,error="please add tag names to attach with your note!!!")
+@app.post("/notes/{id}/files")
+async def upload_file_to_note(id:int,files:Annotated[List[UploadFile],File(default_factory=list)],db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
+  note = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.User.id == current_user.id).first()
+  if not note:
+    raise HTTPException(400,"Note doesn't exist!!!")
+  for file in files:
+    upload_get_path = upload_file(file)
+    db.add(db_models.MediaFile(file_name=file.filename,file_path=upload_get_path,content_type=file.content_type,note_id=note.id))
+  return success_response(message="File added successfully",status_code=201)
+
 
 
 
