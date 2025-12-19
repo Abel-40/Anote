@@ -9,9 +9,10 @@ from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiRe
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from dependencies import get_current_user,get_db,authenticate,token_generator,validate_tag,verify_token
-from datetime import timedelta
+from datetime import timedelta,datetime,timezone
 import jwt
 import db_models
+import time
 
 # important variables
 
@@ -21,6 +22,14 @@ REFRESH_SECRET_KEY = setting.REFRESH_SECRET_KEY
 ALGOR = setting.ALGORITHUM
 TOKEN_EXPIRY = setting.TOKEN_EXPIRY_DATE
 
+@app.middleware("http")
+async def response_time(request:Request,call_next):
+  request_time = time.perf_counter()
+  response = await call_next(request)
+  duration_ms = (time.perf_counter()-request_time) * 1000
+  
+  response.headers['X-Response-Time'] = f"{duration_ms:.3f} ms"
+  return response
 
 
 #endpoints  
