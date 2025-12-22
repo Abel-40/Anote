@@ -1,17 +1,45 @@
 from pwdlib import PasswordHash
 from fastapi import HTTPException,UploadFile,status
-from pydantic_models import ApiResponse, PaginatedResponse
+from pydantic_models import ApiResponse, PaginatedResponse,Optional
 from pathlib import Path
 from config import setting
 from uuid import uuid4
 from math import ceil
+from datetime import datetime,timezone
 import shutil
-
+import json
 
 password_hash = PasswordHash.recommended()
 UPLOAD_DIR = Path(setting.UPLOAD_DIR)
 UPLOAD_DIR.mkdir(parents=True,exist_ok=True)
+LOGFILE_DIR = Path(setting.LOGFILEDIR)
+LOGFILE_DIR.mkdir(parents=True,exist_ok=True)
 
+def write_log_file(data):
+  current_datetime = datetime.now()
+  today_date = current_datetime.date()
+  full_path = LOGFILE_DIR / f"{today_date}.log"
+  log_entry = {
+      "time": current_datetime.isoformat(),
+      "method": data["method"],
+      "url": data["url"],
+      "user_id":data["user_id"],
+      "status_code": data["status_code"],
+      "response_time_ms": data["response_time_ms"]
+  }
+  with full_path.open("a", encoding="utf-8") as buffer:
+      buffer.write(json.dumps(log_entry))
+      buffer.write("\n")
+def log_file_format(method:str,url:str,status_code:int,response_time_ms:int,user_id:Optional[int] = None):
+  current_datetime = datetime.now()
+  return {
+    "time":str(current_datetime),
+    "method":method,
+    "url":url,
+    "user_id":user_id,
+    "status_code":status_code,
+    "response_time_ms":response_time_ms
+          }
 # utility functions
 def hash_password(plain_password):
   return password_hash.hash(plain_password)
@@ -59,3 +87,6 @@ def paginated_query(query,page:int,page_size:int):
       "total_pages":total_pages
     }
   }
+  
+
+  

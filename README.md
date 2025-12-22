@@ -1,8 +1,8 @@
 # ⚡ FastAPI Notes API
 
-This project is a backend API built with **FastAPI** designed to practice and demonstrate real-world backend concepts, including authentication, database relationships, migrations, middleware, and file handling.
+## 📝 Project Intention
 
-The project is intentionally concise, aiming to cover most core FastAPI features efficiently.
+The FastAPI Notes API is primarily built as a learning and practice project for mastering modern backend development with FastAPI. The goal is not just to create a CRUD app, but to understand and implement real-world backend patterns that are essential for production-ready applications.
 
 ---
 
@@ -92,6 +92,7 @@ DB_URL=postgresql://username:password@localhost:5432/your_database
 SECRET_KEY=your-secret-key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+UPLOAD_DIR=DIR_NAME
 ```
 
 > ⚠️ **Security Note:** Ensure your `.gitignore` file includes `.env` to prevent accidentally committing credentials.
@@ -134,7 +135,15 @@ The API will be available at:
   * Secure environment configuration
 
 -----
+📂 Log Files
 
+The LOGFILE_DIR directory is used to store all application log files.
+
+Each log file is created per day, named with the current date (e.g., 2025-12-22.log).
+
+The logs record request time, method, URL, user ID, status code, and response time, helping track user activity and API performance.
+
+----
 ## 📜 License
 
 This project is licensed under the **MIT License**.

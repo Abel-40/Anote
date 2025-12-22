@@ -1,7 +1,8 @@
 from fastapi import FastAPI,Depends,HTTPException,Request,UploadFile,File,Query,status,Response,Cookie
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from config import setting
-from utility import hash_password,upload_file,success_response,error_response,PaginatedResponse,paginated_query
+from utility import hash_password,upload_file,success_response,error_response,PaginatedResponse,paginated_query,write_log_file,log_file_format
 from typing import Annotated,List
 from sqlalchemy.orm import Session,joinedload
 from sqlalchemy.exc import IntegrityError
@@ -21,7 +22,17 @@ ACCESS_SECRET_KEY = setting.ACCESS_SECRET_KEY
 REFRESH_SECRET_KEY = setting.REFRESH_SECRET_KEY
 ALGOR = setting.ALGORITHUM
 TOKEN_EXPIRY = setting.TOKEN_EXPIRY_DATE
+origin = [setting.ORIGIN]
+# *******************default middleare ***********************
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins = origin,
+  allow_credentials = True,
+  allow_methods= ["*"],
+  allow_headers=["*"]
+)
 
+# ****************** custom middleware ***********************
 @app.middleware("http")
 async def response_time(request:Request,call_next):
   request_time = time.perf_counter()
@@ -31,7 +42,20 @@ async def response_time(request:Request,call_next):
   response.headers['X-Response-Time'] = f"{duration_ms:.3f} ms"
   return response
 
-
+@app.middleware("http")
+async def log_writer(request:Request,call_next):
+  request_time = time.perf_counter()
+  url = request.url.path
+  method = request.method
+  response =  await call_next(request)
+  user_id = getattr(request.state,"user_id",None)
+  response_time = (time.perf_counter() - request_time) * 1000
+  status_code = response.status_code
+  data = log_file_format(method=method,url=url,user_id=user_id,status_code=status_code,response_time_ms=response_time)
+  write_log_file(data=data)
+  
+  return response
+  
 #endpoints  
 
 # **********************Auth Endpoints******************************* 
@@ -63,8 +87,8 @@ async def login(form:Annotated[OAuth2PasswordRequestForm,Depends()],db:Session =
   user = authenticate(db,username,password)
   if not user:
     raise credentials_exception
-  acces_token = token_generator(data={"sub":username,"type":"access"},token_type=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
-  refresh_token = token_generator(data={"sub":username,"type":"refresh"},token_type=REFRESH_SECRET_KEY,token_expiry=timedelta(days=30))
+  acces_token = token_generator(data={"sub":username,"type":"access"},secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
+  refresh_token = token_generator(data={"sub":username,"type":"refresh"},secret_key=REFRESH_SECRET_KEY,token_expiry=timedelta(days=30))
   response = JSONResponse(content={"id":user.id,"username":user.username,"email":user.email,"full_name":user.full_name,"access_token":acces_token})
   response.set_cookie(
     key="refresh_token",
@@ -106,7 +130,6 @@ async def create_note(
   """
   existing_tags = []
   new_tags = []
-  print(f"TAGS:----> {tag_names}")
   if tag_names:
     existing_tags = (db.query(db_models.Tag).filter(db_models.Tag.name.in_(tag_names)).all())
     existing_names = {tag.name for tag in existing_tags}
@@ -132,7 +155,7 @@ async def create_note(
     response_model=ApiResponse[PaginatedResponse[NoteOut]]
 )
 async def get_notes(
-    q: QueryParams = Depends(),
+    q: QueryParams = Depends(QueryParams),
     current_user: db_models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

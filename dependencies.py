@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException,Form,Depends
+from fastapi import HTTPException,Form,Depends,Request
 from typing import List,Annotated
 from db_connection import session
 from utility import validate_password
@@ -51,7 +51,7 @@ def authenticate(database:Session,username:str, password:str):
     return False
   return user
 
-def get_current_user(token:Annotated[str,Depends(auth_scheme)],db:Session = Depends(get_db))->db_models.User:
+def get_current_user(request:Request,token:Annotated[str,Depends(auth_scheme)],db:Session = Depends(get_db))->db_models.User:
   credentials_exception = HTTPException(status_code=401,detail="Invalid Credentials!!!", headers = {"WWW-Authenticate":"Bearer"})
   try:
     payload = jwt.decode(token,ACCESS_SECRET_KEY,algorithms=[ALGOR])
@@ -64,18 +64,19 @@ def get_current_user(token:Annotated[str,Depends(auth_scheme)],db:Session = Depe
     user = get_user(username,db)
     if not user:
       raise credentials_exception
+    request.state.user_id = user.id
     return user
   except InvalidTokenError:
     raise credentials_exception
 
-def token_generator(data:dict,token_type:str,token_expiry:timedelta | None = None):
+def token_generator(data:dict,secret_key,token_expiry:timedelta | None = None):
     to_encode = data.copy()
     if token_expiry:
       token_expiry = datetime.now(timezone.utc) + token_expiry
     else:
       token_expiry = datetime.now(timezone.utc) + timedelta(days=15)
     to_encode.update({"exp":token_expiry})
-    token = jwt.encode(to_encode,token_type,ALGOR)
+    token = jwt.encode(to_encode,secret_key,ALGOR)
     return token
   
 def verify_token(token:str = Depends(auth_scheme)):
