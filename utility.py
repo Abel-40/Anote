@@ -1,5 +1,7 @@
 from pwdlib import PasswordHash
 from fastapi import HTTPException,UploadFile,status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic_models import ApiResponse, PaginatedResponse,Optional
 from pathlib import Path
 from config import setting
@@ -25,12 +27,13 @@ def write_log_file(data):
       "url": data["url"],
       "user_id":data["user_id"],
       "status_code": data["status_code"],
-      "response_time_ms": data["response_time_ms"]
+      "response_time_ms": data["response_time_ms"],
+      "request_id":data["request_id"]
   }
   with full_path.open("a", encoding="utf-8") as buffer:
       buffer.write(json.dumps(log_entry))
       buffer.write("\n")
-def log_file_format(method:str,url:str,status_code:int,response_time_ms:int,user_id:Optional[int] = None):
+def log_file_format(method:str,url:str,status_code:int,response_time_ms:int,request_id:str,user_id:Optional[int] = None):
   current_datetime = datetime.now()
   return {
     "time":str(current_datetime),
@@ -38,7 +41,8 @@ def log_file_format(method:str,url:str,status_code:int,response_time_ms:int,user
     "url":url,
     "user_id":user_id,
     "status_code":status_code,
-    "response_time_ms":response_time_ms
+    "response_time_ms":response_time_ms,
+    "request_id":request_id
           }
 # utility functions
 def hash_password(plain_password):
@@ -57,16 +61,25 @@ def upload_file(file:UploadFile):
       )
 
   file_name = f"{uuid4()}{suffix}"
-  print(file_name)
   file_path = UPLOAD_DIR / file_name
   with file_path.open("wb") as buffer:
     shutil.copyfileobj(file.file,buffer)
   return str(file_path) 
 
 def success_response(message:str,status_code:int,data:any=None,meta:dict[str,any]=None):
-  return ApiResponse(success=True,message=message,data=data,status_code=status_code,meta=meta,errors=None)
-def error_response(message:str,status_code:int,meta:dict[str,any]=None,error:any=None):
-  return ApiResponse(success=False,message=message,data=None,satus_code=status_code,meta=meta,errors=error)
+  return ApiResponse(success=True,message=message,data=data,meta=meta,errors=None)
+def error_response(message:str,status_code:int,meta:dict[str,any]=None,errors:any=None,request_id:str | None =None):
+
+  return  JSONResponse(
+          status_code=status_code,
+          content=ApiResponse(
+            success=False,
+            message=message,
+            data=None,
+            meta={"request_id": request_id} if request_id else None,
+            errors=errors
+            ).model_dump()
+          )
 
 
 def paginated_query(query,page:int,page_size:int):

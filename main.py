@@ -1,4 +1,5 @@
 from fastapi import FastAPI,Depends,HTTPException,Request,UploadFile,File,Query,status,Response,Cookie
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from config import setting
@@ -6,11 +7,12 @@ from utility import hash_password,upload_file,success_response,error_response,Pa
 from typing import Annotated,List
 from sqlalchemy.orm import Session,joinedload
 from sqlalchemy.exc import IntegrityError
-from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams,NoteUpdate
+from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams,NoteUpdate,ErrorResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from dependencies import get_current_user,get_db,authenticate,token_generator,validate_tag,verify_token
 from datetime import timedelta,datetime,timezone
+from uuid import uuid4
 import jwt
 import db_models
 import time
@@ -34,28 +36,61 @@ app.add_middleware(
 
 # ****************** custom middleware ***********************
 @app.middleware("http")
-async def response_time(request:Request,call_next):
-  request_time = time.perf_counter()
-  response = await call_next(request)
-  duration_ms = (time.perf_counter()-request_time) * 1000
-  
-  response.headers['X-Response-Time'] = f"{duration_ms:.3f} ms"
-  return response
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(uuid4()))
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 
 @app.middleware("http")
-async def log_writer(request:Request,call_next):
-  request_time = time.perf_counter()
-  url = request.url.path
-  method = request.method
-  response =  await call_next(request)
-  user_id = getattr(request.state,"user_id",None)
-  response_time = (time.perf_counter() - request_time) * 1000
-  status_code = response.status_code
-  data = log_file_format(method=method,url=url,user_id=user_id,status_code=status_code,response_time_ms=response_time)
-  write_log_file(data=data)
+async def log_writer(request: Request, call_next):
+    request_time = time.perf_counter()
+    url = request.url.path
+    method = request.method
+    response = await call_next(request)
+    user_id = getattr(request.state, "user_id", None)
+    request_id = getattr(request.state, "request_id", None)
+    response_time = (time.perf_counter() - request_time) * 1000
+    response.headers['X-Response-Time'] = f"{response_time:.3f} ms"
+    status_code = response.status_code
+
+    data = log_file_format(
+        method=method,
+        url=url,
+        user_id=user_id,
+        status_code=status_code,
+        response_time_ms=response_time,
+        request_id=request_id
+    )
+    write_log_file(data=data)
+    return response
+
+
+
+
+# ************************ error response model **************************
+@app.exception_handler(HTTPException)
+async def http_excptions_handler(request:Request,exc:HTTPException):
+  return error_response(status_code=exc.status_code,message=exc.detail,request_id=getattr(request.state, "request_id", None))
   
-  return response
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request:Request,exc:RequestValidationError):
+  field_errors = {}
+  for err in exc.errors():
+    field = err["loc"][-1]
+    field_errors.setdefault(field,[]).append(err["msg"])
+  return error_response(
+              status_code=422,
+              message="Validation error",
+              errors=field_errors,
+              request_id=getattr(request.state, "request_id", None)
+            )
   
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request:Request,exc:Exception):
+  return error_response(status_code=500,message="Something went wrong. Please try again later.",request_id=getattr(request.state, "request_id", None))
 #endpoints  
 
 # **********************Auth Endpoints******************************* 
@@ -89,7 +124,7 @@ async def login(form:Annotated[OAuth2PasswordRequestForm,Depends()],db:Session =
     raise credentials_exception
   acces_token = token_generator(data={"sub":username,"type":"access"},secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
   refresh_token = token_generator(data={"sub":username,"type":"refresh"},secret_key=REFRESH_SECRET_KEY,token_expiry=timedelta(days=30))
-  response = JSONResponse(content={"id":user.id,"username":user.username,"email":user.email,"full_name":user.full_name,"access_token":acces_token})
+  response = JSONResponse(status_code=200,content={"id":user.id,"username":user.username,"email":user.email,"full_name":user.full_name,"access_token":acces_token})
   response.set_cookie(
     key="refresh_token",
     value=refresh_token,
@@ -110,7 +145,7 @@ async def refresh(request:Request):
     username = decoder.get("sub")
     if not username:
       raise HTTPException(401,"username doesn't exist!!!")
-    access_token = token_generator(data={"sub":username},token_type=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
+    access_token = token_generator(data={"sub":username},secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
     return {"access_token":access_token,"token_type":"Bearer"}
   except InvalidTokenError:
     raise HTTPException(401,"Invalid Token!!!")
@@ -155,7 +190,7 @@ async def create_note(
     response_model=ApiResponse[PaginatedResponse[NoteOut]]
 )
 async def get_notes(
-    q: QueryParams = Depends(QueryParams),
+    q: Annotated[QueryParams,Query()],
     current_user: db_models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -206,7 +241,7 @@ async def get_note_by_id(id:int,response:Response,db:Session = Depends(get_db),c
   .first()
   )
   if not note:
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Note doesn't exist.")
+    raise HTTPException(status_code=404,detail="Note doesn't exist.")
   response.set_cookie(key="last_note",value=id,secure=False,httponly=True,max_age=60 * 60 * 24)
   return success_response(message="Note fetched successfully!!!",status_code=status.HTTP_200_OK,data=note,meta=None)
  
@@ -231,28 +266,55 @@ async def delete_note(id:int,db:Session=Depends(get_db),current_user:db_models.U
   return {"message":"Note successfully deleted!!!"}
 
 
-@app.post("/notes/{id}/tags",response_model=ApiResponse[NoteOut])
-async def add_tags_to_note(id:int,tag_names:List[str]=Depends(validate_tag),db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
-  existing_tags =[]
-  new_tags = []
-  if tag_names:
+@app.post("/notes/{id}/tags", response_model=ApiResponse[NoteOut])
+async def add_tags_to_note(
+    id: int,
+    tag_names: List[str] = Depends(validate_tag),
+    db: Session = Depends(get_db),
+    current_user: db_models.User = Depends(get_current_user)
+):
+    if not tag_names:
+        raise HTTPException(
+            status_code=400,
+            detail="Please add tag names to attach with your note"
+        )
+
     existing_tags = (
-      db.query(db_models.Tag)
-      .filter(db_models.Tag.name.in_(tag_names))
-      .all()
-      )
-    existing_tagnames = [tag.name for tag in existing_tags]
-    new_tags = [ db_models.Tag(name=tag) for tag in tag_names if tag not in existing_tagnames ]
+        db.query(db_models.Tag)
+        .filter(db_models.Tag.name.in_(tag_names))
+        .all()
+    )
+
+    existing_tagnames = {tag.name for tag in existing_tags}
+    new_tags = [
+        db_models.Tag(name=name)
+        for name in tag_names
+        if name not in existing_tagnames
+    ]
+
     db.add_all(new_tags)
-    note = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id).first()
+
+    note = (
+        db.query(db_models.Note)
+        .filter(
+            db_models.Note.id == id,
+            db_models.Note.user_id == current_user.id
+        )
+        .first()
+    )
+
     if not note:
-      raise HTTPException(400,"Note doesn't exist!!!")
-    
-    note.tags.extend(new_tags)
+        raise HTTPException(404, "Note doesn't exist")
+
+    note.tags.extend(existing_tags + new_tags)
     db.commit()
-    return success_response(message="Tags added successfully to note!!!",status_code=200,data=note)
-  else:
-    return error_response(message="Please add tags name",status_code=400,error="please add tag names to attach with your note!!!")
+
+    return ApiResponse(
+        success=True,
+        message="Tags added successfully to note",
+        data=note
+    )
+
 @app.post("/notes/{id}/files")
 async def upload_file_to_note(id:int,files:Annotated[List[UploadFile],File(default_factory=list)],db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
   note = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.User.id == current_user.id).first()

@@ -1,0 +1,6 @@
+{"time": "2025-12-24T12:51:13.320134", "method": "GET", "url": "/docs", "user_id": null, "status_code": 200, "response_time_ms": 2.7396999939810485}
+{"time": "2025-12-24T12:51:14.233189", "method": "GET", "url": "/openapi.json", "user_id": null, "status_code": 200, "response_time_ms": 163.29460000270046}
+{"time": "2025-12-24T12:52:45.629562", "method": "POST", "url": "/login/", "user_id": null, "status_code": 401, "response_time_ms": 740.7094000081997}
+{"time": "2025-12-24T12:52:59.350394", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 91.64239998790435}
+{"time": "2025-12-24T12:54:08.459970", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 144.0162000071723}
+{"time": "2025-12-24T12:54:20.414471", "method": "POST", "url": "/login/", "user_id": null, "status_code": 201, "response_time_ms": 166.33350000483915}

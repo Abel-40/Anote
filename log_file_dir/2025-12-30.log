@@ -1,0 +1,59 @@
+{"time": "2025-12-30T09:56:22.418736", "method": "GET", "url": "/docs", "user_id": null, "status_code": 200, "response_time_ms": 1.8251999999847612}
+{"time": "2025-12-30T09:56:24.888518", "method": "GET", "url": "/openapi.json", "user_id": null, "status_code": 200, "response_time_ms": 541.604599999971}
+{"time": "2025-12-30T10:18:18.012548", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.5464999999276188}
+{"time": "2025-12-30T10:18:19.304178", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 1287.0020999998815}
+{"time": "2025-12-30T10:18:54.638338", "method": "GET", "url": "/notes/", "user_id": 1, "status_code": 200, "response_time_ms": 209.2649999999594}
+{"time": "2025-12-30T10:45:15.752857", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.5584999998973217}
+{"time": "2025-12-30T10:45:16.193541", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 436.23059999981706}
+{"time": "2025-12-30T11:18:12.542622", "method": "GET", "url": "/notes/", "user_id": null, "status_code": 401, "response_time_ms": 6.312200000138546}
+{"time": "2025-12-30T11:18:30.478603", "method": "GET", "url": "/notes/", "user_id": null, "status_code": 401, "response_time_ms": 2.943000000414031}
+{"time": "2025-12-30T11:18:45.674306", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.5661000004693051}
+{"time": "2025-12-30T11:18:45.841322", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 162.44630000073812}
+{"time": "2025-12-30T11:43:45.526068", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.5524999996850966}
+{"time": "2025-12-30T11:43:45.691176", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 160.4481999993368}
+{"time": "2025-12-30T11:43:56.736849", "method": "GET", "url": "/notes/", "user_id": 1, "status_code": 200, "response_time_ms": 31.474599999455677}
+{"time": "2025-12-30T11:55:57.091553", "method": "GET", "url": "/notes/3454", "user_id": 1, "status_code": 400, "response_time_ms": 214.67530000063562}
+{"time": "2025-12-30T11:56:25.088074", "method": "GET", "url": "/notes/last-opened", "user_id": 1, "status_code": 404, "response_time_ms": 5.773900000349386}
+{"time": "2025-12-30T11:58:43.532887", "method": "POST", "url": "/register/", "user_id": null, "status_code": 409, "response_time_ms": 760.7967000003555}
+{"time": "2025-12-30T11:58:59.889000", "method": "POST", "url": "/register/", "user_id": null, "status_code": 200, "response_time_ms": 103.55429999981425}
+{"time": "2025-12-30T11:59:31.604738", "method": "POST", "url": "/register/", "user_id": null, "status_code": 409, "response_time_ms": 78.08230000046024}
+{"time": "2025-12-30T11:59:48.805449", "method": "POST", "url": "/register/", "user_id": null, "status_code": 409, "response_time_ms": 78.57100000001083}
+{"time": "2025-12-30T11:59:58.683409", "method": "POST", "url": "/register/", "user_id": null, "status_code": 409, "response_time_ms": 95.29970000039611}
+{"time": "2025-12-30T12:00:08.225377", "method": "POST", "url": "/register/", "user_id": null, "status_code": 409, "response_time_ms": 78.73040000049514}
+{"time": "2025-12-30T12:00:18.753185", "method": "POST", "url": "/register/", "user_id": null, "status_code": 409, "response_time_ms": 102.29520000029879}
+{"time": "2025-12-30T12:20:15.271505", "method": "GET", "url": "/docs", "user_id": null, "status_code": 200, "response_time_ms": 1.4314999989437638}
+{"time": "2025-12-30T12:20:16.178433", "method": "GET", "url": "/openapi.json", "user_id": null, "status_code": 200, "response_time_ms": 76.71920000029786}
+{"time": "2025-12-30T12:20:29.864431", "method": "GET", "url": "/notes/", "user_id": null, "status_code": 401, "response_time_ms": 4.291600000215112}
+{"time": "2025-12-30T12:22:44.508407", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.5528999990929151}
+{"time": "2025-12-30T12:22:44.765152", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 252.1233999996184}
+{"time": "2025-12-30T12:22:51.415915", "method": "GET", "url": "/docs", "user_id": null, "status_code": 200, "response_time_ms": 0.5424000009952579}
+{"time": "2025-12-30T12:22:52.239096", "method": "GET", "url": "/openapi.json", "user_id": null, "status_code": 200, "response_time_ms": 81.26300000003539}
+{"time": "2025-12-30T12:24:49.622862", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.3937999990739627}
+{"time": "2025-12-30T12:24:50.053149", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 425.7062999986374}
+{"time": "2025-12-30T12:24:56.620474", "method": "GET", "url": "/notes/", "user_id": 1, "status_code": 200, "response_time_ms": 35.62479999891366}
+{"time": "2025-12-30T12:25:46.886291", "method": "GET", "url": "/notes/", "user_id": 1, "status_code": 200, "response_time_ms": 108.34070000055362}
+{"time": "2025-12-30T12:26:29.124713", "method": "GET", "url": "/notes/", "user_id": 1, "status_code": 200, "response_time_ms": 107.36240000005637}
+{"time": "2025-12-30T12:26:40.302141", "method": "GET", "url": "/docs", "user_id": null, "status_code": 200, "response_time_ms": 1.9281999993836507}
+{"time": "2025-12-30T12:26:41.378997", "method": "GET", "url": "/openapi.json", "user_id": null, "status_code": 200, "response_time_ms": 336.3891999997577}
+{"time": "2025-12-30T12:27:18.820464", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.5072999992989935}
+{"time": "2025-12-30T12:27:18.900584", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 75.44950000010431}
+{"time": "2025-12-30T13:05:35.770642", "method": "GET", "url": "/docs", "user_id": null, "status_code": 200, "response_time_ms": 1.0959999999613501}
+{"time": "2025-12-30T13:05:36.523071", "method": "GET", "url": "/openapi.json", "user_id": null, "status_code": 200, "response_time_ms": 74.93859999885899}
+{"time": "2025-12-30T13:05:48.938616", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.4288000000087777}
+{"time": "2025-12-30T13:05:49.105245", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 162.2371999983443}
+{"time": "2025-12-30T13:05:58.870256", "method": "GET", "url": "/notes/", "user_id": 1, "status_code": 200, "response_time_ms": 26.353999999628286}
+{"time": "2025-12-30T13:07:26.417787", "method": "GET", "url": "/notes/5325245", "user_id": 1, "status_code": 400, "response_time_ms": 359.4162999997934}
+{"time": "2025-12-30T13:08:59.647984", "method": "GET", "url": "/notes/5325245", "user_id": 1, "status_code": 404, "response_time_ms": 94.17329999996582}
+{"time": "2025-12-30T13:38:17.750424", "method": "POST", "url": "/register/", "user_id": null, "status_code": 409, "response_time_ms": 503.5044999985985, "request_id": "55099c17-1640-4b28-8df7-89ba07a0fe72"}
+{"time": "2025-12-30T13:38:28.368746", "method": "POST", "url": "/register/", "user_id": null, "status_code": 200, "response_time_ms": 83.64819999951578, "request_id": "e2002bf8-46d4-4772-8739-69b1906e7128"}
+{"time": "2025-12-30T13:39:00.273514", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 82.39859999957844, "request_id": "c1327c34-0f51-4e41-a413-5e53bc5fd02b"}
+{"time": "2025-12-30T13:39:46.293392", "method": "POST", "url": "/refresh/", "user_id": null, "status_code": 200, "response_time_ms": 2.291799999511568, "request_id": "534ccd01-dc13-4b04-a2a8-9b06f0000bd3"}
+{"time": "2025-12-30T13:40:37.749706", "method": "POST", "url": "/notes/", "user_id": null, "status_code": 401, "response_time_ms": 16.237699999692268, "request_id": "e79e7245-c474-467e-a028-19b71b5a461a"}
+{"time": "2025-12-30T13:40:53.107614", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.7838000001356704, "request_id": "95df5060-f8ab-47df-a8af-6000b76fa2ff"}
+{"time": "2025-12-30T13:40:53.195556", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 83.243199998833, "request_id": "1ea416e2-9a92-43bd-95e9-7e17c3478c82"}
+{"time": "2025-12-30T13:41:07.003706", "method": "POST", "url": "/notes/", "user_id": 12, "status_code": 422, "response_time_ms": 30.500899998514797, "request_id": "ed5fdae2-c28c-4a59-b8f4-8b52f75ae839"}
+{"time": "2025-12-30T13:41:24.748649", "method": "POST", "url": "/notes/", "user_id": 12, "status_code": 422, "response_time_ms": 11.03540000076464, "request_id": "c64ba2fe-0bc3-4bb5-affe-76557b7f63dc"}
+{"time": "2025-12-30T13:41:37.399774", "method": "POST", "url": "/notes/", "user_id": 12, "status_code": 200, "response_time_ms": 298.42719999942346, "request_id": "3585892e-4e41-496a-8ed7-6e0d3def9b09"}
+{"time": "2025-12-30T13:45:05.988652", "method": "GET", "url": "/notes/5325245", "user_id": 12, "status_code": 404, "response_time_ms": 20.203999998557265, "request_id": "bdbb9e5f-25cc-4fae-91fe-4f0ef243ede1"}
+{"time": "2025-12-30T13:45:13.544166", "method": "GET", "url": "/notes/5325245", "user_id": 12, "status_code": 404, "response_time_ms": 6.534699999974691, "request_id": "c2b0a7cb-ce08-4aa1-a129-01d8d9e3e0be"}
+{"time": "2025-12-30T13:45:15.090304", "method": "GET", "url": "/notes/5325245", "user_id": 12, "status_code": 404, "response_time_ms": 6.490900001153932, "request_id": "a365306d-7e5c-47ae-aeec-bf62d8889b1b"}

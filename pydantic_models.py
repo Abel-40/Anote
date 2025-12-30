@@ -77,13 +77,13 @@ class QueryParams(BaseModel):
   page:int = Field(default=1,ge=1)
   page_size:int = Field(default=10,le=100)
   tags:Optional[List[str]] = None
+  
 T = TypeVar("T")
 
 class ApiResponse(BaseModel,Generic[T]):
   success:bool
   message:str
   data:Optional[T] = None
-  status_code:int
   meta:Optional[dict[str,Any]] = None
   errors:Optional[Any] = None
 
@@ -97,3 +97,8 @@ I = TypeVar("I")
 class PaginatedResponse(BaseModel,Generic[I]):
   items:List[I]
   pagination:PaginationMeta
+  
+class ErrorResponse(BaseModel):
+    success: bool = False
+    message: str
+    errors: dict | None = None
