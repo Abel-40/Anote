@@ -5,7 +5,7 @@ from db_connection import session
 from utility import validate_password
 from fastapi.security import OAuth2PasswordBearer
 from config import setting
-from jwt.exceptions import InvalidTokenError
+from jwt.exceptions import InvalidTokenError,PyJWTError
 from datetime import datetime,timedelta,timezone
 import jwt 
 import db_models
@@ -55,18 +55,20 @@ def get_current_user(request:Request,token:Annotated[str,Depends(auth_scheme)],d
   credentials_exception = HTTPException(status_code=401,detail="Invalid Credentials!!!", headers = {"WWW-Authenticate":"Bearer"})
   try:
     payload = jwt.decode(token,ACCESS_SECRET_KEY,algorithms=[ALGOR])
-    username = payload.get("sub")
+    user_id = int(payload.get("sub"))
     if payload.get("type") != "access":
       raise credentials_exception
 
-    if not username:
+    if not user_id:
       raise credentials_exception
-    user = get_user(username,db)
+    user = db.query(db_models.User).filter(db_models.User.id == user_id).first()
     if not user:
       raise credentials_exception
     request.state.user_id = user.id
     return user
-  except InvalidTokenError:
+  except PyJWTError as e:
+    print("JWT ERROR TYPE:", type(e).__name__)
+    print("JWT ERROR MSG:", str(e))
     raise credentials_exception
 
 def token_generator(data:dict,secret_key,token_expiry:timedelta | None = None):

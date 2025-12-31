@@ -7,11 +7,11 @@ from utility import hash_password,upload_file,success_response,error_response,Pa
 from typing import Annotated,List
 from sqlalchemy.orm import Session,joinedload
 from sqlalchemy.exc import IntegrityError
-from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams,NoteUpdate,ErrorResponse
+from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams,NoteUpdate
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from dependencies import get_current_user,get_db,authenticate,token_generator,validate_tag,verify_token
-from datetime import timedelta,datetime,timezone
+from datetime import timedelta
 from uuid import uuid4
 import jwt
 import db_models
@@ -120,10 +120,11 @@ async def login(form:Annotated[OAuth2PasswordRequestForm,Depends()],db:Session =
   password = form.password
   credentials_exception = HTTPException(status_code=401,detail="Invalid username or password!!!",headers={"WWW-Authenticate":"Bearer"})
   user = authenticate(db,username,password)
+  print(user.id)
   if not user:
     raise credentials_exception
-  acces_token = token_generator(data={"sub":username,"type":"access"},secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
-  refresh_token = token_generator(data={"sub":username,"type":"refresh"},secret_key=REFRESH_SECRET_KEY,token_expiry=timedelta(days=30))
+  acces_token = token_generator(data={"sub":str(user.id),"type":"access"},secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
+  refresh_token = token_generator(data={"sub":user.id,"type":"refresh"},secret_key=REFRESH_SECRET_KEY,token_expiry=timedelta(days=30))
   response = JSONResponse(status_code=200,content={"id":user.id,"username":user.username,"email":user.email,"full_name":user.full_name,"access_token":acces_token})
   response.set_cookie(
     key="refresh_token",
@@ -142,10 +143,10 @@ async def refresh(request:Request):
     raise HTTPException(401, "Missing refresh token")
   try:
     decoder = jwt.decode(refresh_token,REFRESH_SECRET_KEY,algorithms=[ALGOR])
-    username = decoder.get("sub")
-    if not username:
+    user_id = decoder.get("sub")
+    if not user_id:
       raise HTTPException(401,"username doesn't exist!!!")
-    access_token = token_generator(data={"sub":username},secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
+    access_token = token_generator(data={"sub":user_id},secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
     return {"access_token":access_token,"token_type":"Bearer"}
   except InvalidTokenError:
     raise HTTPException(401,"Invalid Token!!!")
@@ -203,7 +204,6 @@ async def get_notes(
         .filter(db_models.Note.user_id == current_user.id)
         .order_by(db_models.Note.created_at.desc())
     )
-
     result = paginated_query(
         query,
         page=q.page,

@@ -141,7 +141,7 @@ The LOGFILE_DIR directory is used to store all application log files.
 
 Each log file is created per day, named with the current date (e.g., 2025-12-22.log).
 
-The logs record request time, method, URL, user ID, status code, and response time, helping track user activity and API performance.
+The logs record request time, method, URL, user ID, status code, request id and response time, helping track user activity and API performance.
 
 ----
 ## 📜 License
