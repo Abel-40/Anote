@@ -10,6 +10,7 @@ from jwt.exceptions import InvalidTokenError,PyJWTError
 from datetime import datetime,timedelta,timezone
 import jwt 
 import db_models
+from db_models import Permission
 
 ACCESS_SECRET_KEY = setting.ACCESS_SECRET_KEY
 auth_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -75,7 +76,7 @@ def get_current_user(request:Request,token:Annotated[str,Depends(auth_scheme)],d
     if not user:
       raise credentials_exception
     request.state.user_id = user.id
-    return user
+    return payload
   except PyJWTError as e:
     print("JWT ERROR TYPE:", type(e).__name__)
     print("JWT ERROR MSG:", str(e))
@@ -98,6 +99,11 @@ def verify_token(token:str = Depends(auth_scheme)):
     raise HTTPException(401,"Invalid Token!!!")
   
   
-# def required_permission(required_permissions:list[str]):
-#     def check(current_user:db_models.User = Depends(get_current_user)):
-#       permission
+def required_permission(required_permissions:list[str]):
+    def check(current_user:db_models.User = Depends(get_current_user)):
+      user_permissions = set(current_user["perm"])
+      if not set(required_permissions).issubset(user_permissions):
+        raise HTTPException(status_code=403,detail="you don't have permission to do this!!!")
+      return current_user
+    
+    return check
