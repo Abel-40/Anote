@@ -5,14 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import setting
 from utility import hash_password,upload_file,success_response,error_response,PaginatedResponse,paginated_query,write_log_file,log_file_format
 from typing import Annotated,List
-from sqlalchemy.orm import Session,joinedload
+from sqlalchemy.orm import Session,joinedload,selectinload
 from sqlalchemy.exc import IntegrityError
 from pydantic_models import UserOut,UserCreate,UserDbIn,NoteCreate,NoteOut,ApiResponse,QueryParams,NoteUpdate
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from dependencies import get_current_user,get_db,authenticate,token_generator,validate_tag,verify_token
+from sqlalchemy import select
 from datetime import timedelta
 from uuid import uuid4
+from seed_permissions import seed_permissions,assign_permission
 import jwt
 import db_models
 import time
@@ -167,7 +169,7 @@ async def create_note(
   existing_tags = []
   new_tags = []
   if tag_names:
-    existing_tags = (db.query(db_models.Tag).filter(db_models.Tag.name.in_(tag_names)).all())
+    existing_tags = db.execute(select(db_models.Tag).where(db_models.Tag.name.in_(tag_names))).scalars().all()
     existing_names = {tag.name for tag in existing_tags}
     new_tags = [db_models.Tag(name=name) for name in tag_names if name not in existing_names]
     db.add_all(new_tags)
@@ -191,21 +193,23 @@ async def create_note(
     response_model=ApiResponse[PaginatedResponse[NoteOut]]
 )
 async def get_notes(
-    q: Annotated[QueryParams,Query()],
+    q: Annotated[QueryParams, Query()],
     current_user: db_models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    query = (
-        db.query(db_models.Note)
+    stmt = (
+        select(db_models.Note)
         .options(
-            joinedload(db_models.Note.tags),
-            joinedload(db_models.Note.files)
+            selectinload(db_models.Note.tags),
+            selectinload(db_models.Note.files)
         )
-        .filter(db_models.Note.user_id == current_user.id)
+        .where(db_models.Note.user_id == current_user.id)
         .order_by(db_models.Note.created_at.desc())
     )
+
     result = paginated_query(
-        query,
+        session=db,
+        stmt=stmt,
         page=q.page,
         page_size=q.page_size
     )
@@ -219,27 +223,22 @@ async def get_notes(
         status_code=status.HTTP_200_OK
     )
 
+
 @app.get("/notes/last-opened",response_model=ApiResponse[NoteOut])
 async def get_last_opened_note(request:Request,db:Session = Depends(get_db),current_user:db_models = Depends(get_current_user)):
   last_opened_note_id = request.cookies.get("last_note")
   if not last_opened_note_id:
     raise HTTPException(404, "No last opened note")
-  note = db.query(db_models.Note).filter(db_models.Note.id == int(last_opened_note_id), db_models.Note.user_id == current_user.id ).first()
+  note = db.execute(select(db_models.Note).where(db_models.Note.id == int(last_opened_note_id),db_models.Note.user_id == current_user.id)).scalars().first()
   if not note:
     raise HTTPException(400,"Note doesn't exist!!!")   
   return success_response(message="Note fetched",status_code=200,data=note)
 
 @app.get("/notes/{id}",response_model=ApiResponse[NoteOut])
 async def get_note_by_id(id:int,response:Response,db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
-  note = (
-  db.query(db_models.Note)
-  .options(
-    joinedload(db_models.Note.files),
-    joinedload(db_models.Note.tags)
-  )
-  .filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id)
-  .first()
-  )
+  
+  note = db.execute(select(db_models.Note).options(joinedload(db_models.Note.files),joinedload(db_models.Note.tags)).where(db_models.Note.id == id,db_models.Note.user_id == current_user.id)).scalars().first()
+  
   if not note:
     raise HTTPException(status_code=404,detail="Note doesn't exist.")
   response.set_cookie(key="last_note",value=id,secure=False,httponly=True,max_age=60 * 60 * 24)
@@ -247,7 +246,7 @@ async def get_note_by_id(id:int,response:Response,db:Session = Depends(get_db),c
  
 @app.put("/notes/{id}",response_model=ApiResponse[NoteOut])
 async def update_note(id:int,note_content:NoteUpdate,db:Session=Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
-  note_to_update = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id).first()
+  note_to_update = db.execute(select(db_models.Note).options(joinedload(db_models.Note.files),joinedload(db_models.Note.tags)).where(db_models.Note.id == id,db_models.Note.user_id == current_user.id)).scalars().first()
   if not note_to_update:
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Note doesn't exist.")
   for key,value in note_content.model_dump(exclude_none=True).items():
@@ -257,7 +256,7 @@ async def update_note(id:int,note_content:NoteUpdate,db:Session=Depends(get_db),
   
 @app.delete("/notes/{id}")
 async def delete_note(id:int,db:Session=Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
-  note_to_delete = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.Note.user_id == current_user.id).first()
+  note_to_delete = db.execute(select(db_models.Note).options(joinedload(db_models.Note.files),joinedload(db_models.Note.tags)).where(db_models.Note.id == id,db_models.Note.user_id == current_user.id)).scalars().first()
   if not note_to_delete:
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Note doesn't exist.")
   db.delete(note_to_delete)
@@ -279,29 +278,19 @@ async def add_tags_to_note(
             detail="Please add tag names to attach with your note"
         )
 
-    existing_tags = (
-        db.query(db_models.Tag)
-        .filter(db_models.Tag.name.in_(tag_names))
-        .all()
-    )
-
+    existing_tags = db.execute(select(db_models.Tag).where(db_models.Tag.name.in_(tag_names))).scalars().all()
+    
     existing_tagnames = {tag.name for tag in existing_tags}
     new_tags = [
         db_models.Tag(name=name)
         for name in tag_names
         if name not in existing_tagnames
     ]
-
+    if not new_tags:
+      raise HTTPException(422,"Tag already linked")
     db.add_all(new_tags)
 
-    note = (
-        db.query(db_models.Note)
-        .filter(
-            db_models.Note.id == id,
-            db_models.Note.user_id == current_user.id
-        )
-        .first()
-    )
+    note = db.execute(select(db_models.Note).options(joinedload(db_models.Note.files),joinedload(db_models.Note.tags)).where(db_models.Note.id == id,db_models.Note.user_id == current_user.id)).scalars().first()
 
     if not note:
         raise HTTPException(404, "Note doesn't exist")
@@ -317,7 +306,7 @@ async def add_tags_to_note(
 
 @app.post("/notes/{id}/files")
 async def upload_file_to_note(id:int,files:Annotated[List[UploadFile],File(default_factory=list)],db:Session = Depends(get_db),current_user:db_models.User = Depends(get_current_user)):
-  note = db.query(db_models.Note).filter(db_models.Note.id == id,db_models.User.id == current_user.id).first()
+  note = db.execute(select(db_models.Note).options(joinedload(db_models.Note.files),joinedload(db_models.Note.tags)).where(db_models.Note.id == id,db_models.Note.user_id == current_user.id)).scalars().first()
   if not note:
     raise HTTPException(400,"Note doesn't exist!!!")
   for file in files:
@@ -331,3 +320,13 @@ async def upload_file_to_note(id:int,files:Annotated[List[UploadFile],File(defau
 @app.post("/check/",dependencies=[Depends(verify_token)])
 async def check(file:UploadFile):
   return {"file name":file.filename}
+
+
+@app.get("/create/permissions/")
+async def generate_permission(db:Session = Depends(get_db)):
+  
+  # create =  seed_permissions(db)
+  # if create:
+  #   return {"message":"permission created successfully."}
+  assign_permission(db)
+  return {"message":"role created  created"}

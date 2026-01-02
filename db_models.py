@@ -74,7 +74,7 @@ class Permission(Base):
   name = Column(String,unique=True,index=True)
   description = Column(String,nullable=True)
   
-  roles = relationship("Role",secondary=role_permission,back_populates="permission")
+  roles = relationship("Role",secondary=role_permission,back_populates="permissions")
 class Role(Base):
   __tablename__ = "role"
   
@@ -82,5 +82,5 @@ class Role(Base):
   name = Column(String,unique=True)
   description = Column(String,nullable=True)
   
-  permission = relationship("Permission",secondary=role_permission,back_populates="roles")
+  permissions = relationship("Permission",secondary=role_permission,back_populates="roles")
   users = relationship("User",secondary=user_roles,back_populates="roles")

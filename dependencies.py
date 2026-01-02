@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from fastapi import HTTPException,Form,Depends,Request
 from typing import List,Annotated
 from db_connection import session
@@ -16,17 +17,18 @@ ALGOR = setting.ALGORITHUM
 
 #dependancy funxtions
 def get_user(username:str,db:Session):
-  user = db.query(db_models.User).filter(db_models.User.username == username).first()
+  user = db.execute(select(db_models.User).where(db_models.User.username == username)).scalar_one_or_none()
   return user
 
-def validate_tag(
-    tag_names: str = Form(...)
-) -> List[str]:
+
+def parse_and_validate_tags(tag_names: str | None) -> list[str]:
 
     if not tag_names:
-      return []
+        return []
+
     tag_list = tag_names.split()
-    validated_tags = []
+    validated_tags: list[str] = []
+
     for tag in tag_list:
         if not tag.startswith("#"):
             raise HTTPException(
@@ -34,7 +36,15 @@ def validate_tag(
                 detail="Tags must start with '#'"
             )
         validated_tags.append(tag)
+
     return validated_tags
+
+
+def validate_tag(
+    tag_names: str = Form(...)
+) -> list[str]:
+    return parse_and_validate_tags(tag_names)
+
   
 def get_db():
   db = session()
@@ -61,7 +71,7 @@ def get_current_user(request:Request,token:Annotated[str,Depends(auth_scheme)],d
 
     if not user_id:
       raise credentials_exception
-    user = db.query(db_models.User).filter(db_models.User.id == user_id).first()
+    user = db.execute(select(db_models.User).where(db_models.User.id == user_id)).scalar_one_or_none()
     if not user:
       raise credentials_exception
     request.state.user_id = user.id
@@ -86,3 +96,8 @@ def verify_token(token:str = Depends(auth_scheme)):
     jwt.decode(token,ACCESS_SECRET_KEY,algorithms=[ALGOR])
   except InvalidTokenError:
     raise HTTPException(401,"Invalid Token!!!")
+  
+  
+# def required_permission(required_permissions:list[str]):
+#     def check(current_user:db_models.User = Depends(get_current_user)):
+#       permission

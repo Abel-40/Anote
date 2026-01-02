@@ -5,9 +5,11 @@ from fastapi.encoders import jsonable_encoder
 from pydantic_models import ApiResponse, PaginatedResponse,Optional
 from pathlib import Path
 from config import setting
+from sqlalchemy import select, func
 from uuid import uuid4
 from math import ceil
-from datetime import datetime,timezone
+from datetime import datetime
+from db_models import User
 import shutil
 import json
 
@@ -78,28 +80,33 @@ def error_response(message:str,status_code:int,meta:dict[str,any]=None,errors:an
             data=None,
             meta={"request_id": request_id} if request_id else None,
             errors=errors
-            ).model_dump()
-          )
+            ).model_dump())
 
 
-def paginated_query(query,page:int,page_size:int):
-  total_items = query.count()
-  total_pages = ceil(total_items/page_size)
-  items = (
-    query
-    .offset((page - 1) * page_size)
-    .limit(page_size)
-    .all()
-  )
-  return {
-    "items":items,
-    "meta":{
-      "page":page,
-      "page_size":page_size,
-      "total_items":total_items,
-      "total_pages":total_pages
+def paginated_query(session, stmt, page: int, page_size: int):
+    # 1️⃣ Count total items
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total_items = session.execute(count_stmt).scalar_one()
+
+    total_pages = ceil(total_items / page_size) if total_items else 1
+
+    # 2️⃣ Apply pagination
+    paginated_stmt = (
+        stmt
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+
+    items = session.execute(paginated_stmt).scalars().all()
+
+    return {
+        "items": items,
+        "meta": {
+            "page": page,
+            "page_size": page_size,
+            "total_items": total_items,
+            "total_pages": total_pages
+        }
     }
-  }
-  
 
   
