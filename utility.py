@@ -84,13 +84,11 @@ def error_response(message:str,status_code:int,meta:dict[str,any]=None,errors:an
 
 
 def paginated_query(session, stmt, page: int, page_size: int):
-    # 1️⃣ Count total items
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total_items = session.execute(count_stmt).scalar_one()
 
     total_pages = ceil(total_items / page_size) if total_items else 1
 
-    # 2️⃣ Apply pagination
     paginated_stmt = (
         stmt
         .offset((page - 1) * page_size)

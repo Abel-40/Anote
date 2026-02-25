@@ -15,6 +15,7 @@ class UserDbIn(User):
   
 class UserOut(User):
   id:int
+  is_active:bool
   class Config:
     from_attributes = True
 

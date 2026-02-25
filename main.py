@@ -48,6 +48,7 @@ async def add_request_id(request: Request, call_next):
 
 @app.middleware("http")
 async def log_writer(request: Request, call_next):
+    print("Log is writing is started")
     request_time = time.perf_counter()
     url = request.url.path
     method = request.method
@@ -67,6 +68,7 @@ async def log_writer(request: Request, call_next):
         request_id=request_id
     )
     write_log_file(data=data)
+    print("Log already written")
     return response
 
 
@@ -96,6 +98,9 @@ async def unhandled_exception_handler(request:Request,exc:Exception):
 #endpoints  
 
 # **********************Auth Endpoints******************************* 
+@app.get("/health")
+async def health_check():
+    return {"status":"OK"}
 @app.post("/register/",response_model=UserOut)
 def register(user_data:UserCreate,db:Annotated[Session,Depends(get_db)],user_role:Literal["free_user","premium_user"]):
   db_data = UserDbIn(**user_data.model_dump(exclude={"password"}),hashed_password=hash_password(user_data.password))
@@ -127,12 +132,12 @@ async def login(form:Annotated[OAuth2PasswordRequestForm,Depends()],db:Session =
   password = form.password
   credentials_exception = HTTPException(status_code=401,detail="Invalid username or password!!!",headers={"WWW-Authenticate":"Bearer"})
   user = authenticate(db,username,password)
-  print(user.id)
   if not user:
     raise credentials_exception
   perm = set()
   for role in user.roles:
     perm.update([p.name for p in role.permissions])
+  print(f"User :::::--------> {user}")
   payload = {
     "sub":str(user.id),
     "type":"access",
@@ -140,8 +145,17 @@ async def login(form:Annotated[OAuth2PasswordRequestForm,Depends()],db:Session =
     "perm":list(perm)
   }
   acces_token = token_generator(data=payload,secret_key=ACCESS_SECRET_KEY,token_expiry=timedelta(minutes=TOKEN_EXPIRY))
-  refresh_token = token_generator(data=payload,secret_key=REFRESH_SECRET_KEY,token_expiry=timedelta(days=30))
-  response = JSONResponse(status_code=200,content={"id":user.id,"username":user.username,"email":user.email,"full_name":user.full_name,"access_token":acces_token})
+  refresh_token = token_generator(data={"sub":str(user.id)},secret_key=REFRESH_SECRET_KEY,token_expiry=timedelta(days=30))
+  response = JSONResponse(
+      status_code=200,
+      content={
+          "id":user.id,
+          "username":user.username,
+          "email":user.email,
+          "full_name":user.full_name,
+          "access_token":acces_token
+          }
+      )
   response.set_cookie(
     key="refresh_token",
     value=refresh_token,
@@ -162,7 +176,8 @@ async def refresh(request:Request,db:Session = Depends(get_db)):
     user_id = decoder.get("sub")
     if not user_id:
       raise HTTPException(401,"username doesn't exist!!!")
-    user = db.execute(select(db_models.User).where(db_models.User.id == user_id)).scalar_one_or_none
+    user = db.execute(select(db_models.User).where(db_models.User.id == user_id)).scalar_one_or_none()
+    print(f"User ::::::-----> {user}")
     if not user:
       raise HTTPException(401,"user doesn't exist!!!")
     perm = set()
@@ -180,6 +195,19 @@ async def refresh(request:Request,db:Session = Depends(get_db)):
     raise HTTPException(401,"Invalid Token!!!")
   
  
+ 
+@app.get("/user-profile",response_model=ApiResponse[UserOut])
+async def user_profile(current_user:db_models.User = Depends(required_permission(["users:read"])),db:Session = Depends(get_db)):
+    user = db.execute(select(db_models.User).where(db_models.User.id == int(current_user["sub"]))).scalar_one_or_none()
+
+    return success_response(
+        message="user profile",
+        data=UserOut.model_validate(user).model_dump(),
+        status_code=status.HTTP_200_OK
+    )
+    
+    
+     
 # **********************Note Endpoints ******************************* 
 @app.post("/notes/")
 async def create_note(
@@ -208,7 +236,7 @@ async def create_note(
         ]
         db.add_all(new_tags)
 
-    note_for_db = db_models.Note(**note.model_dump(), user_id=current_user.id)
+    note_for_db = db_models.Note(**note.model_dump(), user_id=int(current_user["sub"]))
     db.add(note_for_db)
     db.flush()
 
@@ -244,7 +272,7 @@ async def get_notes(
             selectinload(db_models.Note.tags),
             selectinload(db_models.Note.files)
         )
-        .where(db_models.Note.user_id == current_user.id)
+        .where(db_models.Note.user_id == int(current_user["sub"]))
         .order_by(db_models.Note.created_at.desc())
     )
 

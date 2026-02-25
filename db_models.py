@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column,Integer,String,DateTime,Text,ForeignKey,Table
+from sqlalchemy import Column,Integer,String,DateTime,Text,ForeignKey,Table,Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime,timezone
 Base = declarative_base()
@@ -32,9 +32,9 @@ class User(Base):
   hashed_password = Column(String,nullable=False)
   full_name = Column(String)
   created_at = Column(DateTime, default=datetime.utcnow)
-  
+  is_active = Column(Boolean,default=True)
   notes = relationship("Note",back_populates="user",cascade="all, delete")
-  roles = relationship("Role",secondary=user_roles,back_populates="users")
+  roles = relationship("Role",secondary=user_roles,back_populates="users",lazy="selectin")
   
 class Note(Base):
   __tablename__ = "notes"

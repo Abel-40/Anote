@@ -1,0 +1,20 @@
+services:
+  web-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: abeladdis/anote:1.0
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./log_file_dir:/ANOTE/log_file_dir
+      - ./uploaded_files:/ANOTE/uploaded_files
+    ports:
+      - "8080:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s

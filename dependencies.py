@@ -62,7 +62,7 @@ def authenticate(database:Session,username:str, password:str):
     return False
   return user
 
-def get_current_user(request:Request,token:Annotated[str,Depends(auth_scheme)],db:Session = Depends(get_db))->db_models.User:
+def get_current_user(request:Request,token:Annotated[str,Depends(auth_scheme)],db:Session = Depends(get_db)):
   credentials_exception = HTTPException(status_code=401,detail="Invalid Credentials!!!", headers = {"WWW-Authenticate":"Bearer"})
   try:
     payload = jwt.decode(token,ACCESS_SECRET_KEY,algorithms=[ALGOR])

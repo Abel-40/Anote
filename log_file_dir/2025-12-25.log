@@ -1,7 +1,0 @@
-{"time": "2025-12-25T12:56:48.185322", "method": "POST", "url": "/login", "user_id": null, "status_code": 307, "response_time_ms": 0.9147999808192253}
-{"time": "2025-12-25T12:56:48.901072", "method": "POST", "url": "/login/", "user_id": null, "status_code": 200, "response_time_ms": 711.5260999999009}
-{"time": "2025-12-25T12:57:04.208760", "method": "GET", "url": "/notes/", "user_id": 1, "status_code": 200, "response_time_ms": 254.47009998606518}
-{"time": "2025-12-25T12:58:58.877277", "method": "GET", "url": "/notes/890876790", "user_id": 1, "status_code": 400, "response_time_ms": 22.925500001292676}
-{"time": "2025-12-25T13:00:21.002301", "method": "POST", "url": "/notes/", "user_id": 1, "status_code": 422, "response_time_ms": 20.325399993453175}
-{"time": "2025-12-25T13:03:28.654711", "method": "GET", "url": "/notes/last-opened", "user_id": 1, "status_code": 404, "response_time_ms": 4.973100032657385}
-{"time": "2025-12-25T13:07:50.722874", "method": "POST", "url": "/refresh/", "user_id": null, "status_code": 200, "response_time_ms": 2.1218000329099596}

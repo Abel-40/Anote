@@ -6,6 +6,9 @@ class Settings(BaseSettings):
   ALGORITHUM:str
   TOKEN_EXPIRY_DATE:int
   DB_URL:str
+  DB_USER:str
+  DB_PASSWORD:str
+  DB_NAME:str
   UPLOAD_DIR:str
   LOGFILEDIR:str
   ORIGIN:str
