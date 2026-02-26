@@ -33,6 +33,7 @@ class User(Base):
   full_name = Column(String)
   created_at = Column(DateTime, default=datetime.utcnow)
   is_active = Column(Boolean,default=True)
+  
   notes = relationship("Note",back_populates="user",cascade="all, delete")
   roles = relationship("Role",secondary=user_roles,back_populates="users",lazy="selectin")
   

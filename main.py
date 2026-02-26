@@ -98,7 +98,12 @@ async def unhandled_exception_handler(request:Request,exc:Exception):
 #endpoints  
 
 # **********************Auth Endpoints******************************* 
-@app.get("/health")
+@app.get("/generate")
+async def generate_permission(db:Session = Depends(get_db)):
+    seed_permissions(db)
+    assign_permission(db)
+    return {"msg":"successfully seeded"}
+@app.get("/health/")
 async def health_check():
     return {"status":"OK"}
 @app.post("/register/",response_model=UserOut)
@@ -106,10 +111,11 @@ def register(user_data:UserCreate,db:Annotated[Session,Depends(get_db)],user_rol
   db_data = UserDbIn(**user_data.model_dump(exclude={"password"}),hashed_password=hash_password(user_data.password))
   user = db_models.User(**db_data.model_dump())
   db.add(user) 
-  if user_role == "premium_user":
-    role = db.execute(select(db_models.Role).where(db_models.Role.name == user_role)).scalar_one()
-  else:
-    role = db.execute(select(db_models.Role).where(db_models.Role.name == user_role)).scalar_one()
+  role = db.execute(
+        select(db_models.Role).where(db_models.Role.name == user_role)
+       ).scalar_one_or_none()
+  if not role:
+        raise HTTPException(400, "Invalid role")
   user.roles.append(role)
   
   try:

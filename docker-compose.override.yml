@@ -1,4 +1,4 @@
 services:
   web-app:
     environment:
-      DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@host.docker.internal:5432/${DB_NAME}
+      DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}

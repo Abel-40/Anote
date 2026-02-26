@@ -36,6 +36,9 @@ The FastAPI Notes API is primarily built as a learning and practice project for 
 ├── main.py
 ├── pydantic_models.py
 ├── requirement.txt
+├── Dockerfile
+├── docker-compose.yml
+|-- docker-compose.override.yml
 └── README.md
 ```
 ----
@@ -50,45 +53,27 @@ The FastAPI Notes API is primarily built as a learning and practice project for 
 | **Migrations** | Alembic | Database migration tool |
 | **Validation** | Pydantic | Data validation and settings management |
 | **Server** | Uvicorn | ASGI server |
+| **Containerization** | Docker |
 
 -----
 
-## ⚙️ Setup Instructions
+## ⚙️ Setup Instructions (Dockerized)
 
-### 1 Clone the repository
+This project is now containerized using Docker, providing a consistent and isolated development environment. Follow these steps to get the application running.
+
+### 1. Clone the repository
 
 ```bash
 git clone <your-repo-url>
 cd <your-project-folder>
 ```
 
-### 2 Create and activate virtual environment
+### 2. Environment Configuration
 
-```bash
-# Create venv
-python -m venv venv
-
-# Activate (Linux / Mac)
-source venv/bin/activate    
-
-# Activate (Windows)
-venv\Scripts\activate       
-```
-
-### 3 Install dependencies
-
-Install all required Python packages:
-
-```bash
-pip install -r requirement.txt
-```
-
-### 4 Environment Configuration
-
-Create a file named **`.env`** in the project root to store sensitive configuration details:
+Create a file named **`.env`** in the project root to store sensitive configuration details. This file will be used by `docker-compose` to set environment variables for the application service. Make sure to replace the placeholder values with your actual credentials.
 
 ```ini
-DB_URL=postgresql://username:password@localhost:5432/your_database
+DB_URL=postgresql://username:password@db:5432/your_database
 SECRET_KEY=your-secret-key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
@@ -97,30 +82,26 @@ UPLOAD_DIR=DIR_NAME
 
 > ⚠️ **Security Note:** Ensure your `.gitignore` file includes `.env` to prevent accidentally committing credentials.
 
-### 5 Database & Alembic Migrations
+### 3. Build and Run with Docker Compose
 
-If this is the first time running the project, you need to create and apply the database schema:
-
-```bash
-# 1. Generate migration script (if models in db_models.py have changed)
-alembic revision --autogenerate -m "initial migration"
-
-# 2. Apply migration to the database
-alembic upgrade head
-```
-
-### 6 Run the Application
-
-Start the FastAPI application using Uvicorn with auto-reload enabled:
+Navigate to the project root directory where `docker-compose.yml` is located and run the following command to build the Docker images and start the services. This will also apply Alembic migrations automatically.
 
 ```bash
-uvicorn main:app --reload
+docker-compose up --build
 ```
 
-The API will be available at:
+This command will:
+* Build the `app` service Docker image based on the `Dockerfile`.
+* Start a PostgreSQL database service (`db`).
+* Apply any pending Alembic database migrations.
+* Start the FastAPI application service (`app`).
 
-  * **API Root:** `http://127.0.0.1:8000`
-  * **Interactive Docs (Swagger UI):** `http://127.0.0.1:8000/docs`
+### 4. Access the Application
+
+Once the services are up and running, the API will be available at:
+
+  * **API Root:** `http://127.0.0.1:8080`
+  * **Interactive Docs (Swagger UI):** `http://127.0.0.1:8080/docs`
 
 -----
 
@@ -133,6 +114,7 @@ The API will be available at:
   * JWT authentication flow
   * Middleware usage
   * Secure environment configuration
+  * Docker containerization for development and deployment
 
 -----
 📂 Log Files
